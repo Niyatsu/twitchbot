@@ -1,5 +1,5 @@
 import hashlib
-
+import mysql.connector
 import requests
 import config
 import hmac
@@ -10,16 +10,15 @@ base_telegram_url = 'https://api.telegram.org/bot'
 bot_token = config.BOT_TOKEN
 
 
-def send_notification_to_telegram(event_type, broadcaster_id, category_name='', title=''):
+def send_notification_to_telegram(broadcaster_id, category_name='', title=''):
     caption = ''
-    print(f' send notif: {event_type}')
     broadcaster = next((brd for brd in config.TWITCH_BROADCASTERS if brd['id'] == broadcaster_id), None)
     if broadcaster != None:
-        if event_type == config.TW_EVENT_ONLINE:
-            caption = f'Привет! <b>{broadcaster["username"]}</b> запустил стрим на <b>Twitch</b>! \n<a href="www.twitch.tv/{broadcaster["username"]}">Присоединяйся!</a> '
-        elif event_type == config.TW_EVENT_UPDATE:
-            caption = f'Прикинь, <b>{broadcaster["username"]}</b> сейчас стримит <b>{category_name}</b>!\n<b>{broadcaster["username"]}</b> говорит: {title}\n<a href="www.twitch.tv/{broadcaster["username"]}">Присоединяйся!</a> '
+        # if event_type == config.TW_EVENT_ONLINE:
+        #     caption = f'Привет! <b>{broadcaster["username"]}</b> запустил стрим на <b>Twitch</b>! \n<a href="www.twitch.tv/{broadcaster["username"]}">Присоединяйся!</a> '
+        # elif event_type == config.TW_EVENT_UPDATE:
 
+        caption = f'Прикинь, <b>{broadcaster["username"]}</b> сейчас стримит <b>{category_name}</b>!\n<b>{broadcaster["username"]}</b> говорит: {title}\n<a href="www.twitch.tv/{broadcaster["username"]}">Присоединяйся!</a> '
         data = {
             "chat_id": '',
             "photo": broadcaster['notification_photo'],
@@ -59,6 +58,12 @@ def get_auth_token():
     response = response.json()
     token = response['access_token']
     return token
+
+#Get additional channel info, when an event is fired
+def get_channel_info(brd_id):
+    token = get_auth_token()
+    channel_info = requests.get(f'https://api.twitch.tv/helix/channels?broadcaster_id={brd_id}', headers={'Authorization': f'Bearer {token}', 'Client-ID': config.TWITCH_CLIENT_ID }).json()
+    return channel_info
 
 
 # Subscribe to events from all broadcasters in config file, only for foing live here
@@ -165,6 +170,11 @@ def subscribe_for_updates():
 
     return f'{str(success)}', 200
 
+@app.route('/subscribeOfflineEvents')
+def subscribe_for_offline():
+    success = twitch_subscribe_for_events(config.TW_EVENT_OFFLINE)
+    return f'{str(success)}', 200
+
 # List the subscriptions for debug purposes
 @app.route('/listsubs')
 def list_subs_for_dev():
@@ -173,9 +183,10 @@ def list_subs_for_dev():
         'Authorization': f'Bearer {token}',
         'Client-ID': f'{config.TWITCH_CLIENT_ID}'
     }).json()
+    #print(f'DEBUG {r}')
     subs = []
     for i in r['data']:
-        subs.append(i['id'])
+        subs.append({"id": i['id'], "type": i["type"] })
     return f'{subs}', 200
 
 
@@ -191,9 +202,11 @@ def delete_all_subscriptions():
 @app.route('/twitchEventHandler', methods=['POST'])
 def handle_event():
     # print(request.headers)
-    print('FIRED')
     # Get all headers to verify the authencity of message first
 
+    #Connect to DB
+    db_conn = mysql.connector.connect(user=config.DB_USER, password=config.DB_PASSWORD, host=config.DB_HOST, database=config.DB_NAME)
+    cursor = db_conn.cursor()
     # Get all headers from twitch request for verification of the message
     tw_mess_id = request.headers.get(config.TW_MESS_ID)
     tw_mess_time = request.headers.get(config.TW_MESS_TIME)
@@ -202,7 +215,6 @@ def handle_event():
 
     # Test for message authencity comparing the signatures
     if verify_twitch_message(tw_mess_id, tw_mess_time, tw_request_body, tw_mess_sign):
-
         # Handle webhook verification (return the challenge with 200 code)
         if request.headers.get(config.TW_MESS_TYPE) == 'webhook_callback_verification':
             challenge = request.json
@@ -216,16 +228,36 @@ def handle_event():
             return 'OK', 200
         # Here are notifications
         else:
+
+            #В сообщениях об оффлайне другая структура ответа. Нужно проверять тип подписки, т.к. в уведомлении
+            # об оффлайне нет айди месседжа.
             response = request.json
             event_type = response['subscription']['type']
-            brd_id = response["event"]["broadcaster_user_id"]
 
-            if event_type == config.TW_EVENT_ONLINE:
-                send_notification_to_telegram(event_type, brd_id)
-            if response['subscription']['type'] == config.TW_EVENT_UPDATE:
-                send_notification_to_telegram(response['subscription']['type'],
-                                              response["event"]["broadcaster_user_id"],
-                                              response["event"]["category_name"], response["event"]["title"])
+            #If a streamer went online or changed their channel, request additional information and send to telegram
+
+            if (event_type == config.TW_EVENT_ONLINE or event_type == config.TW_EVENT_UPDATE):
+                brd_id = response["event"]["broadcaster_user_id"]
+                mes_id = response["event"]["id"]
+
+
+                #Check if there have been messages with this id before. If there are no records in the DB - send notif and write to DB
+                cursor.execute(f'SELECT * from events where message_id={mes_id}')
+                events = cursor.fetchall()
+
+                if len(events) == 0:
+                    channel_info = get_channel_info(brd_id)
+                    send_notification_to_telegram(brd_id, channel_info["data"][0]["game_name"], channel_info["data"][0]["title"])
+                    cursor.execute(f'INSERT INTO events (message_id, broadcaster_id) VALUES ({mes_id}, {brd_id})')
+
+            # If the streamer went offline, delete all messages related to him in DB, so that nex time he is online, notification is sent
+            if event_type == config.TW_EVENT_OFFLINE:
+                brd_id = response["event"]["broadcaster_user_id"]
+                cursor.execute(f'DELETE FROM events WHERE broadcaster_id={brd_id}')
+
+
+            db_conn.commit()
+            db_conn.close()
 
             return 'OK', 200
 

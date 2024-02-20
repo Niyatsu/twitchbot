@@ -1,7 +1,9 @@
 # Telegraam Bot Tokens. Should be converted to a list to enable posting to several chats
 
 BOT_TOKEN = '5787297127:AAG22SfqYBHqsWaBvzLav2iXitS3nSN-oy8'
-NOTIFICATION_CHAT_LIST = ['-819469609', '-1001050331505']
+#NOTIFICATION_CHAT_LIST = ['-819469609', '-1001050331505']
+NOTIFICATION_CHAT_LIST = ['-819469609',]
+
 
 # Twitch Secret for Subscription
 
@@ -22,6 +24,7 @@ TW_SUB_VERSION = 'Twitch-Eventsub-Subscription-Version'
 
 TW_EVENT_ONLINE = 'stream.online'
 TW_EVENT_UPDATE = 'channel.update'
+TW_EVENT_OFFLINE = 'stream.offline'
 
 # Twitch Broadcaster IDs
 
@@ -34,21 +37,26 @@ TWITCH_BROADCASTERS = [
     {
         "id": "42078350",
         "username": "Niyatsu",
-        "notification_photo": "https://static-cdn.jtvnw.net/jtv_user_pictures/49f31131-5ecd-40cb-9b5c-bd05df8a95bd-profile_image-70x70.png"
+        "notification_photo": "https://sun9-12.userapi.com/impg/rt5eSbxTHlFcE4Ughy-KFk70M5mNGpOfM6Wn9w/xToSeHnQ65Y.jpg?size=400x300&quality=95&sign=6ddd5ee6c4be773e9cff830908c6f159&type=album"
     },
     {
         "id": "48470858",
         "username": "RobotKitten",
-        "notification_photo": "https://static-cdn.jtvnw.net/jtv_user_pictures/49f31131-5ecd-40cb-9b5c-bd05df8a95bd-profile_image-70x70.png"
+        "notification_photo": "https://sun9-13.userapi.com/impg/3WqtPS7nNa6yDcRhU_8Mx4zMS_D16jz5Mkd1Sg/Ub9wb-DfeBw.jpg?size=400x300&quality=95&sign=19aced1f0d1573e22db28c46166bd13c&type=album"
     },
     {
         "id": "469559912",
         "username": "MASHTAGA",
-        "notification_photo": "https://static-cdn.jtvnw.net/jtv_user_pictures/49f31131-5ecd-40cb-9b5c-bd05df8a95bd-profile_image-70x70.png"
+        "notification_photo": "https://sun9-59.userapi.com/impg/oExiflfyn6wBa74hFWhhx9CosfEiahIq509lew/0esecAaeBgA.jpg?size=400x300&quality=95&sign=c1903a6f08d69ce28157c1ba58004f7d&type=album"
     },
     {
         "id": "420396810",
         "username": "Orkhan2332",
-        "notification_photo": "https://static-cdn.jtvnw.net/jtv_user_pictures/49f31131-5ecd-40cb-9b5c-bd05df8a95bd-profile_image-70x70.png"
+        "notification_photo": "https://sun9-67.userapi.com/impg/gEg88UlnFwnGKzFitIlmc4L3-rUoMnKirxIXjA/cDdXTk7_SAM.jpg?size=400x300&quality=95&sign=be8b3e23d6ae84a3feb6990171887dfb&type=album"
     },
 ]
+
+DB_HOST = "niyatsu.mysql.pythonanywhere-services.com"
+DB_USER = "niyatsu"
+DB_PASSWORD = "qwertyq12345"
+DB_NAME = "niyatsu$twitch"
