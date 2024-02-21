@@ -3,9 +3,30 @@ import mysql.connector
 import requests
 import config
 import hmac
-from flask import Flask, request, json, make_response
+import mysql
+from flask import (
+    Flask,
+    request,
+    json,
+    make_response,
+    render_template,
+    redirect,
+    url_for,
+    flash,
+)
+from flask_mysqldb import MySQL
+from wtforms import Form, StringField, PasswordField, validators
+from passlib.hash import sha256_crypt
 
 app = Flask(__name__)
+
+app.config["MYSQL_HOST"] = "localhost"
+app.config["MYSQL_USER"] = "root"
+app.config["MYSQL_PASSWORD"] = ""
+app.config["MYSQL_DB"] = "twitchbot"
+app.config["MYSQL_CURSORCLASS"] = "DictCursor"
+
+mysql = MySQL(app)
 base_telegram_url = "https://api.telegram.org/bot"
 bot_token = config.BOT_TOKEN
 
@@ -165,7 +186,7 @@ def verify_twitch_message(
 # Root route. No use.
 @app.route("/")
 def hello():
-    return "Webhooks"
+    return render_template("index.html")
 
 
 # Just for some testing
@@ -229,7 +250,7 @@ def list_subs_for_dev():
     subs = []
     for i in r["data"]:
         subs.append({"id": i["id"], "type": i["type"]})
-    return f"{subs}", 200
+    return render_template("subscriptions.html", subs=subs)
 
 
 # Invoke the removal of all subs
@@ -322,5 +343,43 @@ def handle_event():
         return "Failed to verify signature", 400
 
 
+@app.route("/register", methods=["GET", "POST"])
+def register_admin():
+    form = RegisterForm(request.form)
+
+    if request.method == "POST" and form.validate():
+        login = form.login.data
+        password = sha256_crypt.hash(str(form.password.data))
+        curs = mysql.connection.cursor()
+        is_unique = curs.execute("SELECT * FROM admins WHERE login = %s", [login])
+        if is_unique > 0:
+            flash("This login is already taken, choose a new one!", "danger")
+            error = "Login taken!"
+            return render_template("register.html", form=form)
+        else:
+            curs.execute(
+                "INSERT INTO admins (login, password) VALUES (%s, %s)",
+                (login, password),
+            )
+            mysql.connection.commit()
+            curs.close()
+            return redirect(url_for("hello"))
+
+    return render_template("register.html", form=form)
+
+
+class RegisterForm(Form):
+    login = StringField("Login", [validators.Length(min=4, max=20)])
+    password = PasswordField(
+        "Password",
+        [
+            validators.DataRequired(),
+            validators.EqualTo("confirm", message="Passwords do not match"),
+        ],
+    )
+    confirm = PasswordField("Confirm")
+
+
 if __name__ == "__main__":
+    app.secret_key = "@zer!zone"
     app.run(debug=True)

@@ -1,0 +1,18 @@
+{% extends 'layout.html'%} {% block body%}
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th scope="col">ID</th>
+      <th scope="col">TYPE</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for sub in subs %}
+    <tr>
+      <td>{{sub.type}}</td>
+      <td>{{sub.id}}</td>
+    </tr>
+    {%endfor%}
+  </tbody>
+  {% endblock%}
+</table>

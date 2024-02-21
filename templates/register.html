@@ -1,0 +1,13 @@
+{% extends 'layout.html' %} {%block body %}
+
+<div class="ms-auto me-auto text-center mt-5"><h1>Add new admin</h1></div>
+
+<form method="POST" class="col-6 ms-auto me-auto mt-5">
+  {% from 'includes/_formhelpers.html' import render_field%}
+  <div class="mb-3">{{render_field (form.login, class_="form-control")}}</div>
+  <div class="mb-3">{{render_field(form.password, class_="form-control")}}</div>
+  <div class="mb-3">{{render_field(form.confirm, class_="form-control")}}</div>
+  <button type="submit" class="btn btn-primary">Add Admin</button>
+</form>
+
+{%endblock%}
