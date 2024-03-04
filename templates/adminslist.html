@@ -1,0 +1,29 @@
+{% extends 'layout.html'%} {% block body %}
+<div class="text-center">
+  <h1>List of current admins</h1>
+</div>
+
+<a href="{{url_for('register_admin')}}" class="btn btn-primary">Add admin</a>
+
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th scope="col">ID</th>
+      <th scope="col">Login</th>
+      <th scope="col"></th>
+      <th scope="col"></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for adm in admins %}
+    <tr>
+      <td>{{adm.id}}</td>
+      <td>{{adm.login}}</td>
+      <td><button class="btn btn-dark pullright">Change Password</button></td>
+      <td><button class="btn btn-danger pullright">Change Password</button></td>
+    </tr>
+    {%endfor%}
+  </tbody>
+</table>
+
+{%endblock%}

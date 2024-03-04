@@ -13,9 +13,10 @@ from flask import (
     redirect,
     url_for,
     flash,
+    session,
 )
 from flask_mysqldb import MySQL
-from wtforms import Form, StringField, PasswordField, validators
+from wtforms import Form, StringField, PasswordField, validators, BooleanField
 from passlib.hash import sha256_crypt
 
 app = Flask(__name__)
@@ -343,6 +344,35 @@ def handle_event():
         return "Failed to verify signature", 400
 
 
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        login = request.form["login"]
+        password_candidate = request.form["password"]
+        cur = mysql.connection.cursor()
+
+        result = cur.execute("SELECT * FROM admins WHERE login = %s", [login])
+        if result > 0:
+            user = cur.fetchone()
+            password = user["password"]
+
+            if sha256_crypt.verify(password_candidate, password):
+                session["logged_in"] = True
+                session["username"] = login
+                flash("You're now logged in!", "success")
+                return redirect(url_for("hello"))
+            else:
+                error = "Invalid login!"
+                return render_template("login.html", error=error)
+            cur.close()
+        else:
+            error = "No such user!"
+            return render_template("login.html", error=error)
+
+        # print(f"DEBUG: {login}, {password_candidate}")
+    return render_template("login.html")
+
+
 @app.route("/register", methods=["GET", "POST"])
 def register_admin():
     form = RegisterForm(request.form)
@@ -366,6 +396,133 @@ def register_admin():
             return redirect(url_for("hello"))
 
     return render_template("register.html", form=form)
+
+
+@app.route("/listadmins")
+def list_admins():
+    curs = mysql.connection.cursor()
+
+    query = curs.execute("SELECT * FROM admins")
+    admins = curs.fetchall()
+
+    if query > 0:
+        return render_template("adminslist.html", admins=admins)
+    else:
+        msg = "No admins!"
+        return render_template("adminslist.html", msg=msg)
+
+
+@app.route("/listbroadcasters")
+def list_broadcasters():
+
+    cur = mysql.connection.cursor()
+
+    query = cur.execute("SELECT * FROM broadcasters")
+    broadcasters = cur.fetchall()
+
+    if query > 0:
+        return render_template("listbroadcasters.html", broadcasters=broadcasters)
+    else:
+        msg = "No Broadcasters"
+        return render_template("listbroadcasters.html", msg=msg)
+
+
+@app.route("/addbroadcaster", methods=["GET", "POST"])
+def add_broadcaster():
+    form = BroadcasterForm(request.form)
+
+    if request.method == "POST" and form.validate():
+        broadcaster_id = form.broadcaster_id.data
+        broadcaster_username = form.broadcaster_username.data
+        notification_photo = form.notification_photo.data
+        use_thumbnail = form.use_thumbnail.data
+        print(f"DEBUG: {use_thumbnail}")
+        cur = mysql.connection.cursor()
+        is_not_unique = cur.execute(
+            "SELECT * FROM broadcasters WHERE broadcaster_id = %s", [broadcaster_id]
+        )
+        if is_not_unique > 0:
+            flash("This broadcaster is already in the database", "warning")
+            error = "Duplicate broadcaster!"
+            return render_template("addbroadcaster.html", form=form)
+        else:
+            cur.execute(
+                "INSERT INTO broadcasters (broadcaster_id, username, notification_photo, use_thumbnail) VALUES (%s, %s, %s, %s)",
+                (
+                    broadcaster_id,
+                    broadcaster_username,
+                    notification_photo,
+                    use_thumbnail,
+                ),
+            )
+            mysql.connection.commit()
+            cur.close()
+            return redirect(url_for("list_broadcasters"))
+
+    return render_template("addbroadcaster.html", form=form)
+
+
+@app.route("/editbroadcaster/<string:id>", methods=["GET", "POST"])
+def edit_broadcaster(id):
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT * FROM broadcasters WHERE id = %s", [id])
+    broadcaster = cur.fetchone()
+
+    form = BroadcasterForm(request.form)
+    form.broadcaster_id.data = broadcaster["broadcaster_id"]
+    form.broadcaster_username.data = broadcaster["username"]
+    form.notification_photo.data = broadcaster["notification_photo"]
+    form.use_thumbnail.data = broadcaster["use_thumbnail"]
+    if request.method == "POST" and form.validate():
+        print(request.form)
+        broadcaster_id = request.form["broadcaster_id"]
+        broadcaster_username = request.form["broadcaster_username"]
+        notification_photo = request.form["notification_photo"]
+        use_thumbnail = 1 if "use_thumbnail" in request.form else 0
+
+        cur.execute(
+            "UPDATE broadcasters SET broadcaster_id = %s, username = %s, notification_photo = %s, use_thumbnail = %s WHERE id = %s",
+            (
+                broadcaster_id,
+                broadcaster_username,
+                notification_photo,
+                use_thumbnail,
+                id,
+            ),
+        )
+
+        mysql.connection.commit()
+        cur.close()
+        flash("Broadvaster successfully edited.", "success")
+        return redirect(url_for("list_broadcasters"))
+
+    mysql.connection.commit()
+    cur.close()
+
+    return render_template("editbroadcaster.html", form=form)
+
+
+def is_logged_in(f):
+    @wraps(f)
+    def wrap(*args, **kwargs):
+        if "logged_in" in session:
+            return f(*args, **kwargs)
+        else:
+            flash("Unauthorized, please login!", "danger")
+            return redirect(url_for("login"))
+
+    return wrap
+
+
+class BroadcasterForm(Form):
+    broadcaster_id = StringField("Broadcaster ID", [validators.DataRequired()])
+    broadcaster_username = StringField(
+        "Broadcaster Twitch Username", [validators.DataRequired()]
+    )
+    notification_photo = StringField(
+        "Photo URL", [validators.DataRequired(), validators.Length(max=250)]
+    )
+    use_thumbnail = BooleanField("Use Thumbnail")
 
 
 class RegisterForm(Form):

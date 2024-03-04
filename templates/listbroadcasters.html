@@ -1,0 +1,40 @@
+{%extends 'layout.html'%} {% block body %}
+<div class="text-center mt-5 mb-3">
+  <h2>List of current broadcasters</h2>
+</div>
+
+<a href="{{url_for('add_broadcaster')}}" class="btn btn-primary mb-3">Add broadcaster</a>
+
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th scope="col">ID</th>
+      <th scope="col">Broadcaster ID</th>
+      <th scope="col">Username</th>
+      <th scope="col">Photo Link</th>
+      <th scope="col">Use Thumbnail</th>
+      <th scope="col">Controls</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for brd in broadcasters %}
+    <tr>
+      <td>{{brd.id}}</td>
+      <td>{{brd.broadcaster_id}}</td>
+      <td>{{brd.username}}</td>
+      <td>
+        <img
+          class="img-thumbnail w-50 d-block mx-auto"
+          src="{{brd.notification_photo}}"
+        />
+      </td>
+      <td>{{brd.use_thumbnail}}</td>
+      <td>
+        <a href="/editbroadcaster/{{brd.id}}" class="btn btn-dark pullright me-2">Edit</a>
+        <button class="btn btn-danger pullright">Delete</button>
+      </td>
+    </tr>
+    {%endfor%}
+  </tbody>
+</table>
+{%endblock%}

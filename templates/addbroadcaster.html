@@ -1,0 +1,18 @@
+{% extends 'layout.html' %} {% block body %}
+<div class="ms-auto me-auto text-center mt-5"><h1>Add new broadcaster</h1></div>
+
+<form method="POST" class="col-6 ms-auto me-auto mt-5">
+  {% from 'includes/_formhelpers.html' import render_field%}
+  <div class="mb-3">{{render_field (form.broadcaster_id, class_="form-control")}}</div>
+  <div class="mb-3">
+    {{render_field(form.broadcaster_username, class_="form-control")}}
+  </div>
+  <div class="mb-3">{{render_field(form.notification_photo, class_="form-control")}}</div>
+  <!-- <div class="mb-3">{{render_field(form.use_thumbnail, class_="form-control")}}</div> -->
+  <div class="mb-3">
+    <label for="">Use Thumbnail</label>
+    {{form.use_thumbnail}}
+  </div>
+  <button type="submit" class="btn btn-primary">Add Admin</button>
+</form>
+{%endblock%}
